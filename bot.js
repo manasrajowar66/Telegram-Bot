@@ -4,6 +4,9 @@ const { createMachine, interpret } = require('xstate')
 let isEmailValidate = false,
     isPasswordValidate
 const PASSWORD = 'Manas@123'
+
+
+
 const checkPassword = (event) => {
     return new Promise((resolve, rejected) => {
         if (event.data.password === PASSWORD) {
@@ -16,6 +19,8 @@ const checkPassword = (event) => {
         }
     })
 }
+
+//Creting a machine 
 const machine = createMachine({
     id: 'mybotmachine',
     initial: 'idle',
@@ -55,6 +60,8 @@ const service = interpret(machine).onTransition((state) => {
 
 service.start()
 
+
+//Telegraf Bot create
 const bot = new telegraf('5710712849:AAG2PnYjwpgc6zZhOicY2lDglCFEy28607A')
 
 bot.start((ctx) => {
