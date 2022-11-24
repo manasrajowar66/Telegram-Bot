@@ -1,16 +1,11 @@
 const telegraf = require('telegraf')
-const { createMachine, interpret } = require('xstate')
+const { createMachine, interpret, assign } = require('xstate')
 
-let isEmailValidate = false,
-    isPasswordValidate
-const PASSWORD = 'Manas@123'
+let isAuthenticated, isEmailValidate
 
-
-
-const checkPassword = (event) => {
+const checkPassword = (event, PASSWORD) => {
     return new Promise((resolve, rejected) => {
         if (event.data.password === PASSWORD) {
-            isPasswordValidate = true
             event.data.ctx.reply('Thanks for using the bot')
             resolve('success')
         } else {
@@ -20,22 +15,55 @@ const checkPassword = (event) => {
     })
 }
 
-//Creting a machine 
+//Creting a machine
 const machine = createMachine({
     id: 'mybotmachine',
     initial: 'idle',
     predictableActionArguments: true,
-    context: {},
+    context: {
+        PASSWORD: 'Manas@123',
+        isAuthenticated: false,
+        isEmailValidate: false,
+    },
     states: {
         idle: {
-            on: { SUBMIT: 'loading' },
+            on: {
+                START: 'emailValidate',
+            },
+        },
+        emailValidate: {
+            on: {
+                EMAILVALIDATE: {
+                    target: 'passwordValidate',
+                    cond: (context, event) => {
+                        if (/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(
+                            event.data.email,
+                        )) {
+                            return true;
+                        } else {
+                            event.data.ctx.reply('enter a valid email address')
+                            return false;
+                        }
+                    },
+                    actions: assign((ctx, event) => {
+                        event.data.ctx.reply('enter password')
+                        return { isEmailValidate: true }
+                    }),
+                },
+            },
+        },
+        passwordValidate: {
+            on: {
+                PASSWORDVALIDATE: 'loading',
+            },
         },
         loading: {
             invoke: {
                 id: 'checkPassword',
-                src: (ctx, event) => checkPassword(event),
+                src: (ctx, event) => checkPassword(event, ctx.PASSWORD),
                 onDone: {
                     target: 'success',
+                    actions: assign({ isAuthenticated: true }),
                 },
                 onError: {
                     target: 'error',
@@ -44,7 +72,7 @@ const machine = createMachine({
         },
         error: {
             on: {
-                SUBMIT: 'loading',
+                PASSWORDVALIDATE: 'loading',
             },
         },
         success: {
@@ -54,18 +82,19 @@ const machine = createMachine({
 })
 
 const service = interpret(machine).onTransition((state) => {
-    console.log(state.value)
-    isPasswordValidate = state.context.isPasswordValidate
+    console.log(state.value, state.context)
+    isAuthenticated = state.context.isAuthenticated
+    isEmailValidate = state.context.isEmailValidate
 })
 
 service.start()
-
 
 //Telegraf Bot create
 const bot = new telegraf('5710712849:AAG2PnYjwpgc6zZhOicY2lDglCFEy28607A')
 
 bot.start((ctx) => {
     ctx.reply('Enter Your Email')
+    service.send('START')
 })
 
 bot.help((ctx) => {
@@ -77,18 +106,13 @@ bot.settings((ctx) => {
 })
 
 bot.on('text', (ctx) => {
-    if (!isEmailValidate || !isPasswordValidate) {
+    if (!isAuthenticated) {
         if (!isEmailValidate) {
             let email = ctx.message.text
-            if (/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(email)) {
-                ctx.reply('enter password')
-                isEmailValidate = true
-            } else {
-                ctx.reply('enter a valid email!')
-            }
+            service.send({ type: 'EMAILVALIDATE', data: { email, ctx } })
         } else {
             let password = ctx.message.text
-            service.send({ type: 'SUBMIT', data: { password, ctx } })
+            service.send({ type: 'PASSWORDVALIDATE', data: { password, ctx } })
         }
     }
 })
