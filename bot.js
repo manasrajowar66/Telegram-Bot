@@ -1,12 +1,20 @@
 const telegraf = require('telegraf')
+const axios = require('axios');
 const { createMachine, interpret, assign } = require('xstate')
 
 let isAuthenticated, isEmailValidate
 
-const checkPassword = (event, PASSWORD) => {
-    return new Promise((resolve, rejected) => {
-        if (event.data.password === PASSWORD) {
+const checkPassword = (event, ctx) => {
+    return new Promise(async (resolve, rejected) => {
+        if (event.data.password === ctx.PASSWORD) {
             event.data.ctx.reply('Thanks for using the bot')
+            await axios({
+                method: 'post',
+                url: "https://react-http-632e6-default-rtdb.firebaseio.com/telegram.json",
+                data: JSON.stringify({
+                    email: ctx.EMAIL
+                })
+            });
             resolve('success')
         } else {
             event.data.ctx.reply('Wrong Password')
@@ -22,6 +30,7 @@ const machine = createMachine({
     predictableActionArguments: true,
     context: {
         PASSWORD: 'Manas@123',
+        EMAIL: '',
         isAuthenticated: false,
         isEmailValidate: false,
     },
@@ -47,7 +56,7 @@ const machine = createMachine({
                     },
                     actions: assign((ctx, event) => {
                         event.data.ctx.reply('enter password')
-                        return { isEmailValidate: true }
+                        return { isEmailValidate: true, EMAIL: event.data.email }
                     }),
                 },
             },
@@ -60,7 +69,7 @@ const machine = createMachine({
         loading: {
             invoke: {
                 id: 'checkPassword',
-                src: (ctx, event) => checkPassword(event, ctx.PASSWORD),
+                src: (ctx, event) => checkPassword(event, ctx),
                 onDone: {
                     target: 'success',
                     actions: assign({ isAuthenticated: true }),
