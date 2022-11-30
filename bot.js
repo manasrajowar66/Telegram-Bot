@@ -24,7 +24,7 @@ const service = interpret(machine).onTransition((state) => {
 service.start();
 
 //Telegraf Bot create
-const bot = new telegraf("5710712849:AAG2PnYjwpgc6zZhOicY2lDglCFEy28607A");
+const bot = new telegraf(process.env.TELEGRAM_TOKEN);
 
 bot.start((ctx) => {
   ctx.reply("Enter Your Email");
