@@ -31,17 +31,10 @@ module.exports = async () => {
   });
 
   bot.on("text", (ctx) => {
-    if (currState.value === "emailValidate") {
-      let email = ctx.message.text;
+    if (!currState.done) {
       service.send({
-        type: "EMAILVALIDATE",
-        data: { email, ctx },
-      });
-    } else if (currState.value === "passwordValidate") {
-      let password = ctx.message.text;
-      service.send({
-        type: "PASSWORDVALIDATE",
-        data: { password, ctx },
+        type: "VALIDATE",
+        data: { text: ctx.message.text, ctx },
       });
     }
   });

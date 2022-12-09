@@ -20,35 +20,19 @@ const machine = createMachine(
       },
       emailValidate: {
         on: {
-          EMAILVALIDATE: {
+          VALIDATE: {
             target: "passwordValidate",
             cond: "checkEmail",
-            actions: assign((ctx, event) => {
-              event.data.ctx.reply("enter password");
-              return { EMAIL: event.data.email };
-            }),
+            actions: "saveEmail",
           },
         },
       },
       passwordValidate: {
         on: {
-          PASSWORDVALIDATE: {
+          VALIDATE: {
             target: "success",
             cond: "checkPassword",
-            actions: (ctx, event) => {
-              //creating new user and saved to database
-              const user = new User({
-                email: ctx.EMAIL,
-              });
-              user
-                .save()
-                .then(() => {
-                  event.data.ctx.reply("Thanks for using the bot");
-                })
-                .catch((err) => {
-                  event.data.ctx.reply("Something Went Wrong!");
-                });
-            },
+            actions: "savePassword",
           },
         },
       },
@@ -58,10 +42,30 @@ const machine = createMachine(
     },
   },
   {
-    actions: {},
+    actions: {
+      saveEmail: assign((ctx, event) => {
+        event.data.ctx.reply("enter password");
+        //store email in the context
+        return { EMAIL: event.data.text };
+      }),
+      savePassword: (ctx, event) => {
+        //creating new user and saved to database
+        const user = new User({
+          email: ctx.EMAIL,
+        });
+        user
+          .save()
+          .then(() => {
+            event.data.ctx.reply("Thanks for using the bot");
+          })
+          .catch((err) => {
+            event.data.ctx.reply("Something Went Wrong!");
+          });
+      },
+    },
     guards: {
       checkPassword: (ctx, event) => {
-        if (event.data.password === ctx.PASSWORD) {
+        if (event.data.text === ctx.PASSWORD) {
           return true;
         } else {
           event.data.ctx.reply("Wrong Password");
@@ -70,7 +74,7 @@ const machine = createMachine(
       },
       checkEmail: (ctx, event) => {
         if (
-          /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(event.data.email)
+          /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(event.data.text)
         ) {
           return true;
         } else {
